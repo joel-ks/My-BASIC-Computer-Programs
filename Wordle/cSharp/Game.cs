@@ -36,12 +36,12 @@ class Game
             GiveClues(guess);
         } while (guess != _word && _guesses < MAX_GUESSES);
 
-        if (_guesses >= MAX_GUESSES)
+        if (_guesses > MAX_GUESSES)
         {
             Console.WriteLine($"Sorry. You've used all your {MAX_GUESSES} guesses.");
             Console.WriteLine($"The word was '{_word}'");
         }
-        else
+        else // guess == _word
         {
             Console.WriteLine("Well done!");
             Console.WriteLine($"You found the word '{_word}' in {_guesses}/{MAX_GUESSES} guesses");
@@ -90,7 +90,9 @@ class Game
 
         foreach (var clue in clues)
         {
+            Console.BackgroundColor = clue.GetColour();
             Console.Write(clue.HintChar());
+            Console.ResetColor();
         }
 
         Console.WriteLine();
@@ -137,5 +139,5 @@ class Game
 
     private static int PaddedLength(char[] row) => row.Length * 2 - 1;
 
-    private static bool IsWord(string str) => str.All(c => (c >= 'A' && c <= 'Z') && (c >= 'a' && c <= 'z'));
+    private static bool IsWord(string str) => str.All(c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
 }
