@@ -18,7 +18,7 @@ static class Program
 
         do
         {
-            var game = new Game(ChooseRandomWord(words, rand));
+            var game = new Game(ChooseRandomWord(words, rand), words);
             Console.WriteLine("-----"); // Imply the word has 5 letters
             game.Play();
         } while (PlayAgain());

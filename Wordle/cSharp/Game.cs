@@ -15,12 +15,17 @@ class Game
     };
 
     private string _word;
+    private List<string> _wordlist;
+    private Dictionary<char, int> _letterFreqs;
     private int _guesses = 0;
     private Dictionary<char, Clue> _letterClues = new Dictionary<char, Clue>();
 
-    public Game(string word)
+    public Game(string word, IEnumerable<string> wordlist)
     {
         _word = word.ToUpper();
+        _wordlist = new List<string>(wordlist);
+        _wordlist.Sort();
+        _letterFreqs = _word.GroupBy(c => c).ToDictionary(g => g.Key, g => g.Count());
     }
 
     public void Play()
@@ -33,18 +38,21 @@ class Game
 
             guess = ReadGuess().ToUpper();
             ++_guesses;
-            GiveClues(guess);
+
+            var clues = GetClues(guess);
+            GiveClues(clues);
+            UpdateLetterClues(clues);
         } while (guess != _word && _guesses < MAX_GUESSES);
 
-        if (_guesses > MAX_GUESSES)
-        {
-            Console.WriteLine($"Sorry. You've used all your {MAX_GUESSES} guesses.");
-            Console.WriteLine($"The word was '{_word}'");
-        }
-        else // guess == _word
+        if (guess == _word)
         {
             Console.WriteLine("Well done!");
             Console.WriteLine($"You found the word '{_word}' in {_guesses}/{MAX_GUESSES} guesses");
+        }
+        else // ran out of guesses
+        {
+            Console.WriteLine($"Sorry. You've used all your {MAX_GUESSES} guesses.");
+            Console.WriteLine($"The word was '{_word}'");
         }
     }
 
@@ -60,41 +68,71 @@ class Game
         } while (true);
     }
 
-    private void GiveClues(string guess)
+    private WordWithClues GetClues(string guess)
     {
-        var clues = new Clue[5];
+        var markedLetterFreqs = new Dictionary<char, int>();
+        var clues = new WordWithClues(_word.Length);
+
+        // First pass - check for CorrectPosition letters as these should always be marked regardless of position
         for (var i = 0; i < _word.Length; ++i)
         {
             var letterI = guess[i];
 
             if (letterI == _word[i])
             {
-                clues[i] = Clue.CorrectPosition;
-                _letterClues[letterI] = Clue.CorrectPosition;
+                clues[i] = (letterI, Clue.CorrectPosition);
+                markedLetterFreqs.IncrementValue(letterI);
             }
-            else if (_word.Contains(letterI))
-            {
-                clues[i] = Clue.InWord;
+        }
 
-                // Don't add the clue to the dictionary if the correct position was already found
-                _letterClues.TryAdd(letterI, Clue.InWord);
+        // Second pass - check for InWord/NotInWord letters
+        for (var i = 0; i < _word.Length; ++i)
+        {
+            // Skip if we already marked the letter as CorrectPosition in the first pass
+            if (clues[i] != default) continue;
+
+            var letterI = guess[i];
+            var letterFreq = markedLetterFreqs.IncrementValue(letterI);
+
+            // The letter is in the word iff the word contains the letter (duh) AND we haven't seen the letter more times than it is in the word
+            // This is so that when a guess contains repeated letters we can hint how many times that letter is in the word
+            var clue = _word.Contains(letterI) && letterFreq <= _letterFreqs[letterI] ? Clue.InWord : Clue.NotInWord;
+            clues[i] = (letterI, clue);
+        }
+
+        return clues;
+    }
+
+    private void UpdateLetterClues(WordWithClues wordWithClues)
+    {
+        foreach (var (c, clue) in wordWithClues)
+        {
+            if (clue == Clue.CorrectPosition)
+            {
+                // To overwrite InWord clues (and NotInWord clues when the guess has repeated letters)
+                _letterClues[c] = clue;
             }
             else
             {
-                clues[i] = Clue.NotInWord;
-                _letterClues[letterI] = Clue.NotInWord;
+                // InWord and NotInWord clues should never overwrite existing clues because:
+                // - NotInWord: in a guess with duplicate letters one might already be marked InWord or CorrectPosition
+                // - InWord: the letter clue may already be CorrectPosition, and if there are duplicate letters in the guess the InWord clues come first
+                _letterClues.TryAdd(c, clue);
             }
         }
+    }
 
+    private void GiveClues(WordWithClues wordWithClues)
+    {
         for (int i=0; i < PROMPT.Length; ++i) Console.Write(' ');
 
-        foreach (var clue in clues)
+        foreach (var (_, clue) in wordWithClues)
         {
             Console.BackgroundColor = clue.GetColour();
             Console.Write(clue.HintChar());
-            Console.ResetColor();
         }
 
+        Console.ResetColor();
         Console.WriteLine();
     }
 
@@ -128,11 +166,10 @@ class Game
 
     private bool GuessIsValid(string guess)
     {
+        // Validations ordered from quickest to slowest
         if (guess.Length != _word.Length) return false;
-        
         if (!IsWord(guess)) return false;
-
-        // TODO: check guess is in wordlist?
+        if (_wordlist.BinarySearch(guess) < 0) return false;
 
         return true;
     }
