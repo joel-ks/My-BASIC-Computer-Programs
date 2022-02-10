@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace WordleCmdLine;
 
@@ -8,6 +9,8 @@ class Game
 {
     private const int MAX_GUESSES = 6;
     private const string PROMPT = "> ";
+    private const char PLACEHOLDER = '-';
+    private const int CLUE_PAUSE_MS = 750;
     private static readonly char[][] KEYBOARD_CHARS = new char[][] {
         new char[] {'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'},
         new char[] {'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'},
@@ -18,35 +21,41 @@ class Game
     private List<string> _wordlist;
     private Dictionary<char, int> _letterFreqs;
     private int _guesses = 0;
-    private Dictionary<char, Clue> _letterClues = new Dictionary<char, Clue>();
+    private Dictionary<char, Clue> _letterClues = new();
 
     public Game(string word, IEnumerable<string> wordlist)
     {
         _word = word.ToUpper();
-        _wordlist = new List<string>(wordlist);
-        _wordlist.Sort();
+        _wordlist = wordlist.Select(w => w.ToUpper()).OrderBy(w => w).ToList();
         _letterFreqs = _word.GroupBy(c => c).ToDictionary(g => g.Key, g => g.Count());
     }
 
     public void Play()
     {
+        // Imply how many letters the word has
+        Console.Write(ConsoleUtils.MakeRepeatedCharString(' ', PROMPT.Length));
+        Console.WriteLine(ConsoleUtils.MakeRepeatedCharString(PLACEHOLDER, _word.Length));
+
         string guess;
         do
         {
             DrawKeyboard();
             Console.WriteLine();
 
-            guess = ReadGuess().ToUpper();
+            guess = ReadGuess();
             ++_guesses;
 
-            var clues = GetClues(guess);
+            var clues = CalculateClues(guess);
             GiveClues(clues);
             UpdateLetterClues(clues);
         } while (guess != _word && _guesses < MAX_GUESSES);
 
+        DrawKeyboard();
+        Console.WriteLine();
+
         if (guess == _word)
         {
-            Console.WriteLine("Well done!");
+            Console.WriteLine("Correct!");
             Console.WriteLine($"You found the word '{_word}' in {_guesses}/{MAX_GUESSES} guesses");
         }
         else // ran out of guesses
@@ -61,14 +70,26 @@ class Game
         do
         {
             Console.Write(PROMPT);
-            var guess = Console.ReadLine();
+            var guess = ConsoleUtils.ReadLineAllCaps();
 
-            if (guess != null && GuessIsValid(guess)) return guess;
-            else Console.WriteLine("Please enter a 5-letter word."); // TODO: this could be nicer...
+            if (guess != null && GuessIsValid(guess))
+            {
+                ConsoleUtils.ClearCurrentLine();
+                return guess;
+            }
+            else
+            {
+                // TODO: better validation messages
+                ConsoleUtils.WriteColoured("Please enter a 5-letter word.", ConsoleColor.DarkRed);
+
+                // Clear the guess
+                --Console.CursorTop;
+                ConsoleUtils.ClearCurrentLine();
+            }
         } while (true);
     }
 
-    private WordWithClues GetClues(string guess)
+    private WordWithClues CalculateClues(string guess)
     {
         var markedLetterFreqs = new Dictionary<char, int>();
         var clues = new WordWithClues(_word.Length);
@@ -124,15 +145,14 @@ class Game
 
     private void GiveClues(WordWithClues wordWithClues)
     {
-        for (int i=0; i < PROMPT.Length; ++i) Console.Write(' ');
+        Console.SetCursorPosition(PROMPT.Length, Console.CursorTop - 1);
 
-        foreach (var (_, clue) in wordWithClues)
+        foreach (var (c, clue) in wordWithClues)
         {
-            Console.BackgroundColor = clue.GetColour();
-            Console.Write(clue.HintChar());
+            Thread.Sleep(CLUE_PAUSE_MS);
+            ConsoleUtils.WriteColoured(c, clue.GetColour());
         }
 
-        Console.ResetColor();
         Console.WriteLine();
     }
 
@@ -145,7 +165,7 @@ class Game
             var padding = maxRowLength - PaddedLength(row);
             int padStart = (int)Math.Ceiling(padding / 2.0);
 
-            Console.Write(string.Concat(Enumerable.Repeat(' ', padStart)));
+            Console.Write(ConsoleUtils.MakeRepeatedCharString(' ', padStart));
 
             foreach (var c in row)
             {
@@ -166,15 +186,14 @@ class Game
 
     private bool GuessIsValid(string guess)
     {
-        // Validations ordered from quickest to slowest
+        // Validations ordered from fastest to slowest
         if (guess.Length != _word.Length) return false;
-        if (!IsWord(guess)) return false;
+        if (!guess.IsWord()) return false;
         if (_wordlist.BinarySearch(guess) < 0) return false;
 
         return true;
     }
 
-    private static int PaddedLength(char[] row) => row.Length * 2 - 1;
-
-    private static bool IsWord(string str) => str.All(c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
+    /// <summary>Length of the keyboard row once we add a space between each character</summary>
+    private static int PaddedLength(char[] keyboardRow) => keyboardRow.Length * 2 - 1;
 }

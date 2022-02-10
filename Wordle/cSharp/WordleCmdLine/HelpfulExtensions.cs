@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace WordleCmdLine;
 
@@ -11,4 +12,6 @@ static class HelpfulExtensions
 
         return count;
     }
+
+    public static bool IsWord(this string str) => str.All(c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
 }

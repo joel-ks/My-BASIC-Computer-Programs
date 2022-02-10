@@ -11,16 +11,6 @@ enum Clue
 
 static class ClueExtensions
 {
-    public static char HintChar(this Clue clue) {
-        switch (clue)
-        {
-            case Clue.NotInWord: return ' ';
-            case Clue.InWord: return '*';
-            case Clue.CorrectPosition: return '^';
-            default: throw new ArgumentException();
-        }
-    }
-
     public static ConsoleColor GetColour(this Clue clue)
     {
         switch (clue)

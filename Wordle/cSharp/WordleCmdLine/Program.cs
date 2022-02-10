@@ -11,32 +11,46 @@ static class Program
 
     static void Main()
     {
+        Console.WriteLine("***** Command line Wordle *****");
+        Console.WriteLine("Based on the original at https://www.powerlanguage.co.uk/wordle/");
+        Console.WriteLine("This recreation ©2022 Joel Kusasira-Sutton");
+        Console.WriteLine();
+
+        Console.WriteLine("Loading word list...");
         var words = LoadWords();
-        Console.Error.WriteLine($"Loaded {words.Count} words");
+        Console.WriteLine("Ready.");
+        Console.WriteLine();
+
+        // TODO: option to show help text somehow?
 
         var rand = new Random();
 
         do
         {
             var game = new Game(ChooseRandomWord(words, rand), words);
-            Console.WriteLine("-----"); // Imply the word has 5 letters
             game.Play();
         } while (PlayAgain());
 
         Console.WriteLine("Goodbye!");
     }
 
-    private static List<string> LoadWords() => File.ReadAllLines(WORD_LIST_FILE).ToList();
+    private static List<string> LoadWords() => File.ReadAllLines(WORD_LIST_FILE).Select(s => s.ToUpper()).ToList();
 
     private static string ChooseRandomWord(IList<string> list, Random random) => list[random.Next(list.Count)];
 
     private static bool PlayAgain()
     {
         Console.Write("Play again? (Y/n) ");
-        var key = Console.ReadKey(); // TODO: loop until Y/y, N/n, or Enter are pressed
 
-        Console.WriteLine();
+        do
+        {
+            var key = Console.ReadKey(true);
 
-        return key.KeyChar != 'n' && key.KeyChar != 'N';
+            if (key.Key == ConsoleKey.Y || key.Key == ConsoleKey.N || key.Key == ConsoleKey.Enter)
+            {
+                Console.WriteLine(key.KeyChar);
+                return key.Key != ConsoleKey.N;
+            }
+        } while (true);
     }
 }
