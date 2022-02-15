@@ -74,7 +74,7 @@ class Game
 
             if (guess != null && GuessIsValid(guess))
             {
-                ConsoleUtils.ClearCurrentLine();
+                ConsoleUtils.ClearCurrentLine(); // This line might have a validation message
                 return guess;
             }
             else
@@ -82,7 +82,7 @@ class Game
                 // TODO: better validation messages
                 ConsoleUtils.WriteColoured("Please enter a 5-letter word.", ConsoleColor.DarkRed);
 
-                // Clear the guess
+                // Move the cursor back to the guess line and clear the guess
                 --Console.CursorTop;
                 ConsoleUtils.ClearCurrentLine();
             }

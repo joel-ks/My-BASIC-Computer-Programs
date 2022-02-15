@@ -8,6 +8,7 @@ namespace WordleCmdLine;
 static class Program
 {
     private const string WORD_LIST_FILE = "..\\wordlist";
+    private const string GUESS_LIST_FILE = "..\\guesslist";
 
     static void Main()
     {
@@ -17,7 +18,9 @@ static class Program
         Console.WriteLine();
 
         Console.WriteLine("Loading word list...");
-        var words = LoadWords();
+        var words = LoadWords(WORD_LIST_FILE);
+        var allowedGuesses = LoadWords(GUESS_LIST_FILE);
+
         Console.WriteLine("Ready.");
         Console.WriteLine();
 
@@ -27,14 +30,14 @@ static class Program
 
         do
         {
-            var game = new Game(ChooseRandomWord(words, rand), words);
+            var game = new Game(ChooseRandomWord(words, rand), allowedGuesses);
             game.Play();
         } while (PlayAgain());
 
         Console.WriteLine("Goodbye!");
     }
 
-    private static List<string> LoadWords() => File.ReadAllLines(WORD_LIST_FILE).Select(s => s.ToUpper()).ToList();
+    private static List<string> LoadWords(string filename) => File.ReadAllLines(filename).Select(s => s.ToUpper()).ToList();
 
     private static string ChooseRandomWord(IList<string> list, Random random) => list[random.Next(list.Count)];
 
